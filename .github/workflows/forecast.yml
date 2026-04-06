@@ -5,6 +5,9 @@ on:
     - cron: '0 * * * *'  # every hour at :00
   workflow_dispatch:       # also allows manual trigger
 
+permissions:
+  contents: write
+
 jobs:
   forecast:
     runs-on: ubuntu-latest
