@@ -100,8 +100,7 @@ output = {
 output_path = 'forecast_output.json'
 with open(output_path, 'w') as f:
     json.dump(output, f, indent=2)
-
-
+    
 # --- Append to verification log ---
 log_path = 'forecast_log.csv'
 log_row = {
