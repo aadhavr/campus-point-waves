@@ -101,6 +101,27 @@ output_path = 'forecast_output.json'
 with open(output_path, 'w') as f:
     json.dump(output, f, indent=2)
 
+
+# --- Append to verification log ---
+log_path = 'forecast_log.csv'
+log_row = {
+    'generated_at':  pd.Timestamp.now(tz='UTC').isoformat(),
+    'mop_time':      mop_time.isoformat(),
+    'Hs_mop_raw':    round(Hs_mop, 3),
+    'Hs_corrected':  result['Hs_corrected'],
+    'confidence':    result['confidence'],
+    'bin':           result['bin'],
+    'scale_factor':  round(result['scale_factor'], 4),
+    'harvest_time':  harvest_time.isoformat(),
+    'harvest_Hs':    round(Hs_harvest, 3),
+    'harvest_Dp':    round(Dp_harvest, 1),
+}
+
+log_df = pd.DataFrame([log_row])
+write_header = not pd.io.common.file_exists(log_path)
+log_df.to_csv(log_path, mode='a', header=write_header, index=False)
+print(f'Appended to {log_path}')
+
 print(f'\nCampus Point Wave Forecast')
 print(f'Generated: {pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%d %H:%M UTC")}')
 print(f'MOP raw:      {Hs_mop:.2f}m  ({mop_time.strftime("%Y-%m-%d %H:%M UTC")})')
