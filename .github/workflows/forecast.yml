@@ -32,6 +32,6 @@ jobs:
         run: |
           git config user.name  "github-actions"
           git config user.email "actions@github.com"
-          git add forecast_output.json
+          git add forecast_output.json forecast_log.csv
           git diff --staged --quiet || git commit -m "forecast update $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push
