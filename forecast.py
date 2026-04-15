@@ -8,6 +8,7 @@ import sys
 import numpy as np
 import pandas as pd
 import xarray as xr
+from model import WaveModel, load_training_data, STATE_PATH
 
 # --- Load correction model ---
 with open('campus_point_correction.json') as f:
@@ -146,8 +147,23 @@ except Exception as e:
 # --- Fetch SPOT buoy observation ---
 spot = fetch_spot_observation(hours_back=2)
 
+# --- Load and refit wave model ---
+wave_model = WaveModel()
+wave_model.load(STATE_PATH)
+train_df = load_training_data()
+if len(train_df) >= 30:
+    wave_model.fit(train_df)
+    wave_model.save(STATE_PATH)
+
 # --- Apply correction ---
 result = correct_forecast(Hs_mop, Dp_harvest, model)
+Hs_ml = wave_model.predict(
+    mop_raw=Hs_mop,
+    harvest_Hs=Hs_harvest,
+    harvest_Dp=Dp_harvest,
+    harvest_Tp=None,  # add once live log has Tp
+)
+print(f"ML prediction: {Hs_ml}m")
 
 # --- Build output ---
 output = {
@@ -189,6 +205,7 @@ log_row = {
     'buoy_Tp':   spot['buoy_Tp']   if spot else None,
     'buoy_Dp':   spot['buoy_Dp']   if spot else None,
     'buoy_time': spot['buoy_time'] if spot else None,
+    'Hs_ml': round(Hs_ml, 3) if Hs_ml is not None else None,
 }
 
 log_df = pd.DataFrame([log_row])
