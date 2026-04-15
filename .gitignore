@@ -5,4 +5,5 @@ __pycache__/
 DATA/
 winter_26_data/
 *.png
+!img/*.png
 .DS_Store
