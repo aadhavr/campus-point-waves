@@ -1,0 +1,2 @@
+generated_at,mop_time,Hs_mop_raw,Hs_corrected,confidence,bin,scale_factor,harvest_time,harvest_Hs,harvest_Dp,buoy_Hs,buoy_Tp,buoy_Dp,buoy_time,Hs_ml
+2026-04-15T03:18:29.701194+00:00,2026-04-15T01:00:00+00:00,0.831,0.929,MEDIUM,NW  (290–330°),1.1175,2026-04-15T02:30:00+00:00,2.59,324.2,1.07,4.86,259.9,2026-04-15T03:04:55+00:00,0.928
