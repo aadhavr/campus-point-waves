@@ -37,6 +37,74 @@ def correct_forecast(Hs_mop, Dp_harvest, model):
         'scale_factor': factors['global'],
     }
 
+def fetch_spot_observation(hours_back=2):
+    """
+    Fetch latest SPOT-1644 embedded history via Sofar public download API.
+    Returns dict with buoy_Hs, buoy_Tp, buoy_Dp, buoy_time or None on failure.
+    """
+    import requests
+    import io
+    from datetime import datetime, timezone, timedelta
+
+    TOKEN = "1bc9848d3e524c34a1eb220e121d9a9e"
+    end   = datetime.now(timezone.utc)
+    start = end - timedelta(hours=hours_back)
+
+    try:
+        resp = requests.get(
+            "https://api.sofarocean.com/fetch/download",
+            params={
+                "spotterId":         "SPOT-1644",
+                "startDate":         start.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                "endDate":           end.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                "processingSources": "all",
+            },
+            headers={
+                "View_token": TOKEN,
+                "Origin":     "https://spotter.sofarocean.com",
+                "Referer":    "https://spotter.sofarocean.com/",
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+
+    except requests.exceptions.Timeout:
+        print("WARN: SPOT fetch timed out — skipping buoy obs", file=sys.stderr)
+        return None
+    except requests.exceptions.HTTPError as e:
+        print(f"WARN: SPOT fetch HTTP error {e} — skipping buoy obs", file=sys.stderr)
+        return None
+    except requests.exceptions.RequestException as e:
+        print(f"WARN: SPOT fetch failed ({e}) — skipping buoy obs", file=sys.stderr)
+        return None
+
+    try:
+        df = pd.read_csv(io.StringIO(resp.text))
+        # filter to rows with valid Hs
+        df = df[df['Significant Wave Height (m)'] != '-'].copy()
+        if df.empty:
+            print("WARN: SPOT response had no valid wave obs — skipping", file=sys.stderr)
+            return None
+
+        df['ts'] = pd.to_datetime(df['Epoch Time'].astype(int), unit='s', utc=True)
+        df['Hs'] = df['Significant Wave Height (m)'].astype(float)
+        df['Tp'] = df['Peak Period (s)'].astype(float)
+        df['Dp'] = df['Peak Direction (deg)'].astype(float)
+        df = df.sort_values('ts')
+
+        latest = df.iloc[-1]
+        print(f"SPOT loaded: Hs={latest['Hs']:.2f}m Tp={latest['Tp']:.1f}s Dp={latest['Dp']:.0f}° at {latest['ts']}")
+        return {
+            'buoy_Hs':   round(float(latest['Hs']), 3),
+            'buoy_Tp':   round(float(latest['Tp']), 2),
+            'buoy_Dp':   round(float(latest['Dp']), 1),
+            'buoy_time': latest['ts'].isoformat(),
+        }
+
+    except Exception as e:
+        print(f"WARN: SPOT parse error ({e}) — skipping buoy obs", file=sys.stderr)
+        return None
+
 # --- Pull latest MOP nowcast ---
 try:
     NOWCAST_URL = "https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/model/MOP_alongshore/B0385_nowcast.nc"
@@ -74,6 +142,9 @@ try:
 except Exception as e:
     print(f'ERROR loading Harvest: {e}', file=sys.stderr)
     sys.exit(1)
+
+# --- Fetch SPOT buoy observation ---
+spot = fetch_spot_observation(hours_back=2)
 
 # --- Apply correction ---
 result = correct_forecast(Hs_mop, Dp_harvest, model)
@@ -114,6 +185,10 @@ log_row = {
     'harvest_time':  harvest_time.isoformat(),
     'harvest_Hs':    round(Hs_harvest, 3),
     'harvest_Dp':    round(Dp_harvest, 1),
+    'buoy_Hs':   spot['buoy_Hs']   if spot else None,
+    'buoy_Tp':   spot['buoy_Tp']   if spot else None,
+    'buoy_Dp':   spot['buoy_Dp']   if spot else None,
+    'buoy_time': spot['buoy_time'] if spot else None,
 }
 
 log_df = pd.DataFrame([log_row])
