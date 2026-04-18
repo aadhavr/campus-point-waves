@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-04-18T20:23:44.048623+00:00",
+  "generated_at": "2026-04-18T21:23:23.767948+00:00",
   "current": {
-    "time": "2026-04-18T19:00:00+00:00",
-    "Hs_mop_raw": 0.437,
-    "Hs_corrected": 0.488,
-    "confidence": "MEDIUM",
-    "bin": "NW  (290\u2013330\u00b0)",
-    "scale_factor": 1.1175,
+    "time": "2026-04-18T20:00:00+00:00",
+    "Hs_mop_raw": 0.4,
+    "Hs_corrected": 0.451,
+    "confidence": "HIGH",
+    "bin": "S   (150\u2013200\u00b0)",
+    "scale_factor": 1.126,
     "harvest": {
-      "time": "2026-04-18T19:30:00+00:00",
-      "Hs": 1.4,
-      "Dp": 318.6
+      "time": "2026-04-18T20:30:00+00:00",
+      "Hs": 1.46,
+      "Dp": 176.5
     }
   }
 }
