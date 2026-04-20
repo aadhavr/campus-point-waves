@@ -106,6 +106,133 @@ def fetch_spot_observation(hours_back=2):
         print(f"WARN: SPOT parse error ({e}) — skipping buoy obs", file=sys.stderr)
         return None
 
+def fetch_tide(hours_back=1):
+    """
+    Fetch latest water level + next 6h tide predictions from NOAA.
+    Station 9411340 = Santa Barbara.
+    Returns dict with tide_height_m, tide_trend, next_high, next_low or None on failure.
+    """
+    import requests
+    from datetime import datetime, timezone, timedelta
+
+    now = datetime.now(timezone.utc)
+    # water level: last hour actual
+    # predictions: next 6 hours
+    base = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
+
+    try:
+        # current water level
+        wl_resp = requests.get(base, params={
+            "station":     "9411340",
+            "product":     "water_level",
+            "datum":       "MLLW",
+            "time_zone":   "gmt",
+            "units":       "metric",
+            "format":      "json",
+            "begin_date":  (now - timedelta(hours=1)).strftime("%Y%m%d %H:%M"),
+            "end_date":    now.strftime("%Y%m%d %H:%M"),
+        }, timeout=10)
+        wl_resp.raise_for_status()
+        wl_data = wl_resp.json()
+        readings = wl_data.get("data", [])
+        if not readings:
+            print("WARN: NOAA water level returned no data", file=sys.stderr)
+            return None
+        latest_wl = float(readings[-1]["v"])
+        prev_wl   = float(readings[0]["v"])
+        trend     = "rising" if latest_wl > prev_wl else "falling"
+
+        # next high/low predictions
+        pred_resp = requests.get(base, params={
+            "station":     "9411340",
+            "product":     "predictions",
+            "datum":       "MLLW",
+            "time_zone":   "gmt",
+            "units":       "metric",
+            "format":      "json",
+            "interval":    "hilo",
+            "begin_date":  now.strftime("%Y%m%d %H:%M"),
+            "end_date":    (now + timedelta(hours=24)).strftime("%Y%m%d %H:%M"),
+        }, timeout=10)
+        pred_resp.raise_for_status()
+        pred_data = pred_resp.json()
+        preds = pred_data.get("predictions", [])
+
+        next_high = next((p for p in preds if p["type"] == "H"), None)
+        next_low  = next((p for p in preds if p["type"] == "L"), None)
+
+        result = {
+            "tide_height_m": round(latest_wl, 2),
+            "tide_trend":    trend,
+            "next_high_m":   round(float(next_high["v"]), 2) if next_high else None,
+            "next_high_t":   next_high["t"] if next_high else None,
+            "next_low_m":    round(float(next_low["v"]), 2)  if next_low  else None,
+            "next_low_t":    next_low["t"]  if next_low  else None,
+        }
+        print(f"Tide loaded: {latest_wl:.2f}m MLLW ({trend}), "
+              f"next high {result['next_high_m']}m @ {result['next_high_t']}, "
+              f"next low {result['next_low_m']}m @ {result['next_low_t']}")
+        return result
+
+    except Exception as e:
+        print(f"WARN: tide fetch failed ({e}) — skipping", file=sys.stderr)
+        return None
+
+
+def fetch_wind(lat=34.4140, lon=-119.8489):
+    """
+    Fetch current wind at Campus Point from Open-Meteo (free, no key).
+    lat/lon default = Campus Point, UCSB.
+    Returns dict with wind_speed_ms, wind_dir_deg, wind_gust_ms or None on failure.
+    """
+    import requests
+
+    try:
+        resp = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude":        lat,
+                "longitude":       lon,
+                "current":         "wind_speed_10m,wind_direction_10m,wind_gusts_10m",
+                "wind_speed_unit": "ms",
+                "timezone":        "UTC",
+                "forecast_days":   1,
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data    = resp.json()
+        current = data["current"]
+
+        speed   = current["wind_speed_10m"]
+        direction = current["wind_direction_10m"]
+        gust    = current["wind_gusts_10m"]
+
+        # classify wind relative to Campus Point
+        # offshore = easterly (45–135°), onshore = westerly (225–315°)
+        if 45 <= direction <= 135:
+            wind_class = "offshore"
+        elif 225 <= direction <= 315:
+            wind_class = "onshore"
+        elif direction < 45 or direction > 315:
+            wind_class = "sideshore-N"
+        else:
+            wind_class = "sideshore-S"
+
+        result = {
+            "wind_speed_ms":  round(speed, 1),
+            "wind_dir_deg":   round(direction, 1),
+            "wind_gust_ms":   round(gust, 1),
+            "wind_class":     wind_class,
+        }
+        print(f"Wind loaded: {speed:.1f}m/s from {direction:.0f}° ({wind_class}), gusts {gust:.1f}m/s")
+        return result
+
+    except Exception as e:
+        print(f"WARN: wind fetch failed ({e}) — skipping", file=sys.stderr)
+        return None
+
+
 # --- Pull latest MOP nowcast ---
 try:
     NOWCAST_URL = "https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/model/MOP_alongshore/B0385_nowcast.nc"
@@ -147,6 +274,10 @@ except Exception as e:
 # --- Fetch SPOT buoy observation ---
 spot = fetch_spot_observation(hours_back=2)
 
+# --- Fetch tide and wind ---
+tide = fetch_tide()
+wind = fetch_wind()
+
 # --- Load and refit wave model ---
 wave_model = WaveModel()
 wave_model.load(STATE_PATH)
@@ -179,7 +310,9 @@ output = {
             'time': harvest_time.isoformat(),
             'Hs':   round(Hs_harvest, 3),
             'Dp':   round(Dp_harvest, 1),
-        }
+        },
+        'tide': tide,
+        'wind': wind,
     }
 }
 
@@ -206,6 +339,18 @@ log_row = {
     'buoy_Dp':   spot['buoy_Dp']   if spot else None,
     'buoy_time': spot['buoy_time'] if spot else None,
     'Hs_ml': round(Hs_ml, 3) if Hs_ml is not None else None,
+    # tide
+    'tide_height_m': tide['tide_height_m'] if tide else None,
+    'tide_trend':    tide['tide_trend']    if tide else None,
+    'next_high_m':   tide['next_high_m']   if tide else None,
+    'next_high_t':   tide['next_high_t']   if tide else None,
+    'next_low_m':    tide['next_low_m']    if tide else None,
+    'next_low_t':    tide['next_low_t']    if tide else None,
+    # wind
+    'wind_speed_ms': wind['wind_speed_ms'] if wind else None,
+    'wind_dir_deg':  wind['wind_dir_deg']  if wind else None,
+    'wind_gust_ms':  wind['wind_gust_ms']  if wind else None,
+    'wind_class':    wind['wind_class']    if wind else None,
 }
 
 log_df = pd.DataFrame([log_row])
@@ -220,4 +365,11 @@ print(f'Harvest:      {Hs_harvest:.2f}m from {Dp_harvest:.0f}°')
 print(f'Swell bin:    {result["bin"]}')
 print(f'Hs corrected: {result["Hs_corrected"]}m')
 print(f'Confidence:   {result["confidence"]}')
+if tide:
+    print(f'Tide:         {tide["tide_height_m"]}m MLLW ({tide["tide_trend"]}) — '
+          f'next high {tide["next_high_m"]}m @ {tide["next_high_t"]}, '
+          f'next low {tide["next_low_m"]}m @ {tide["next_low_t"]}')
+if wind:
+    print(f'Wind:         {wind["wind_speed_ms"]}m/s from {wind["wind_dir_deg"]}° '
+          f'({wind["wind_class"]}), gusts {wind["wind_gust_ms"]}m/s')
 print(f'Written to {output_path}')
