@@ -1,30 +1,30 @@
 {
-  "generated_at": "2026-07-04T13:27:11.194017+00:00",
+  "generated_at": "2026-07-04T14:56:42.522803+00:00",
   "current": {
-    "time": "2026-07-04T12:00:00+00:00",
-    "Hs_mop_raw": 0.483,
-    "Hs_corrected": 0.544,
+    "time": "2026-07-04T13:00:00+00:00",
+    "Hs_mop_raw": 0.464,
+    "Hs_corrected": 0.523,
     "confidence": "HIGH",
     "bin": "S   (150\u2013200\u00b0)",
     "scale_factor": 1.126,
     "harvest": {
-      "time": "2026-07-04T12:30:00+00:00",
-      "Hs": 1.24,
-      "Dp": 185.0
+      "time": "2026-07-04T14:00:00+00:00",
+      "Hs": 1.25,
+      "Dp": 183.6
     },
     "tide": {
-      "tide_height_m": 0.25,
-      "tide_trend": "falling",
+      "tide_height_m": 0.16,
+      "tide_trend": "rising",
       "next_high_m": 1.2,
       "next_high_t": "2026-07-04 21:16",
-      "next_low_m": -0.01,
-      "next_low_t": "2026-07-04 14:23"
+      "next_low_m": 0.82,
+      "next_low_t": "2026-07-05 02:03"
     },
     "wind": {
-      "wind_speed_ms": 2.0,
-      "wind_dir_deg": 41,
-      "wind_gust_ms": 2.3,
-      "wind_class": "sideshore-N"
+      "wind_speed_ms": 1.6,
+      "wind_dir_deg": 63,
+      "wind_gust_ms": 1.8,
+      "wind_class": "offshore"
     }
   }
 }
