@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-07-03T23:54:31.173136+00:00",
+  "generated_at": "2026-07-04T01:44:36.863748+00:00",
   "current": {
-    "time": "2026-07-03T22:00:00+00:00",
-    "Hs_mop_raw": 0.356,
-    "Hs_corrected": 0.4,
+    "time": "2026-07-04T00:00:00+00:00",
+    "Hs_mop_raw": 0.376,
+    "Hs_corrected": 0.424,
     "confidence": "HIGH",
     "bin": "S   (150\u2013200\u00b0)",
     "scale_factor": 1.126,
     "harvest": {
-      "time": "2026-07-03T23:00:00+00:00",
-      "Hs": 1.29,
-      "Dp": 179.3
+      "time": "2026-07-04T01:00:00+00:00",
+      "Hs": 1.4,
+      "Dp": 190.6
     },
     "tide": {
-      "tide_height_m": 0.94,
-      "tide_trend": "falling",
+      "tide_height_m": 0.95,
+      "tide_trend": "rising",
       "next_high_m": 1.56,
       "next_high_t": "2026-07-04 06:58",
-      "next_low_m": 0.83,
-      "next_low_t": "2026-07-04 01:03"
+      "next_low_m": -0.01,
+      "next_low_t": "2026-07-04 14:23"
     },
     "wind": null
   }
